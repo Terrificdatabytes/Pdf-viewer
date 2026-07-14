@@ -3,7 +3,7 @@ import PdfViewer from "./components/PdfViewer";
 import FileTree from "./components/FileTree";
 import CodeViewer from "./components/CodeViewer";
 import BuildGuide from "./components/BuildGuide";
-import { RN_FILES, type RnFile } from "./lib/rnFiles";
+import { RN_FILES, type RnFile } from "./utils/rnFiles";
 
 type Tab = "demo" | "code" | "build";
 

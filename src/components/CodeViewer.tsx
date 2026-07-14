@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import type { RnFile } from "../lib/rnFiles";
-import { downloadTextFile } from "../lib/rnFiles";
+import type { RnFile } from "../utils/rnFiles";
+import { downloadTextFile } from "../utils/rnFiles";
 
 const COMMENT_PREFIX: Record<string, string[]> = {
   javascript: ["//"],

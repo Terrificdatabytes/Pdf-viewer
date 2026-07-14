@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { downloadProjectZip } from "../lib/rnFiles";
+import { downloadProjectZip } from "../utils/rnFiles";
 
 function Command({ children, label }: { children: string; label?: string }) {
   const [copied, setCopied] = useState(false);

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { RN_FILES, RN_GROUPS, downloadProjectZip, type RnFile } from "../lib/rnFiles";
+import { RN_FILES, RN_GROUPS, downloadProjectZip, type RnFile } from "../utils/rnFiles";
 
 export default function FileTree({
   active,

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { buildSamplePdf } from "../lib/samplePdf";
+import { buildSamplePdf } from "../utils/samplePdf";
 
 type Source = { url: string; name: string; isObjectUrl: boolean };
 
