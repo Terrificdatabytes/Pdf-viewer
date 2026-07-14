@@ -1,0 +1,118 @@
+name: Android APK Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      zip_path:
+        description: "Path to the project zip file (optional: auto-detects first *.zip)"
+        required: false
+        default: ""
+      project_dir:
+        description: "Project directory to build after extraction (optional)"
+        required: false
+        default: ""
+      gradle_task:
+        description: "Gradle task to build release APK"
+        required: false
+        default: "assembleRelease"
+      release_tag:
+        description: "Tag name to create/update release for manual runs (for example v1.0.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Extract zip file
+        id: extract
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ZIP_PATH="${{ inputs.zip_path }}"
+          if [[ -z "${ZIP_PATH}" ]]; then
+            ZIP_PATH="$(find . -maxdepth 3 -type f -name '*.zip' | head -n 1 || true)"
+          fi
+
+          if [[ -z "${ZIP_PATH}" ]]; then
+            echo "No zip file found. Using repository files as-is."
+            echo "source_dir=." >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          if [[ ! -f "${ZIP_PATH}" ]]; then
+            echo "Zip file not found: ${ZIP_PATH}" >&2
+            exit 1
+          fi
+
+          mkdir -p extracted
+          unzip -q -o "${ZIP_PATH}" -d extracted
+          echo "source_dir=extracted" >> "${GITHUB_OUTPUT}"
+
+      - name: Resolve project directory
+        id: project
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SOURCE_DIR="${{ steps.extract.outputs.source_dir }}"
+          PROJECT_DIR_INPUT="${{ inputs.project_dir }}"
+
+          if [[ -n "${PROJECT_DIR_INPUT}" ]]; then
+            PROJECT_DIR="${SOURCE_DIR}/${PROJECT_DIR_INPUT}"
+          else
+            GRADLEW_PATH="$(find "${SOURCE_DIR}" -type f -name gradlew | head -n 1 || true)"
+            if [[ -z "${GRADLEW_PATH}" ]]; then
+              echo "Could not find gradlew under ${SOURCE_DIR}. Provide project_dir input." >&2
+              exit 1
+            fi
+            PROJECT_DIR="$(dirname "${GRADLEW_PATH}")"
+          fi
+
+          if [[ ! -f "${PROJECT_DIR}/gradlew" ]]; then
+            echo "gradlew not found in ${PROJECT_DIR}" >&2
+            exit 1
+          fi
+
+          echo "project_dir=${PROJECT_DIR}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build release APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROJECT_DIR="${{ steps.project.outputs.project_dir }}"
+          chmod +x "${PROJECT_DIR}/gradlew"
+          "${PROJECT_DIR}/gradlew" -p "${PROJECT_DIR}" "${{ inputs.gradle_task || 'assembleRelease' }}"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-release-apk
+          path: |
+            ${{ steps.project.outputs.project_dir }}/**/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+          name: ${{ github.event_name == 'workflow_dispatch' && format('Release {0}', inputs.release_tag) || format('Release {0}', github.ref_name) }}
+          files: ${{ steps.project.outputs.project_dir }}/**/build/outputs/apk/release/*.apk
+          generate_release_notes: true
